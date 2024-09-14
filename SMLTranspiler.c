@@ -34,7 +34,7 @@ enum err {
 #define INDENT_WIDTH 2
 #define EXTENSION ".seml"
 #define INPUT_BUFSIZE 1024
-#define PROGRAM_BUFSIZE 1000000
+#define PROGRAM_BUFSIZE 2048
 #define TAG_NAME_LEN 20
 
 int main(int argc, char* argv[])
@@ -103,11 +103,13 @@ int processor(FILE* f_output, FILE* f_input)
         while ((c = *--buf_p) == ' ' || c == '\t' || c == '\n' || c == '\0') { }
         *++buf_p = '\0';
         if ((p_buf_p - program_buf) + (buf_p - buf_start_p) >= PROGRAM_BUFSIZE) {
-            break; // return out of buffer size
+            fprintf(stderr, "cannot read in entire file, max character length: %d, exceeded on line: %d, character: %d", PROGRAM_BUFSIZE, line_num, buf_p - input_buf);
+            break; // break out if reading into program_buf would overflow
         }
         p_buf_p += sprintf(p_buf_p, "%s ", buf_start_p);
     }
-    fprintf(f_output, "%s", "<!DOCTYPE html>");
+
+    fprintf(f_output, "%s", "<!DOCTYPE html>\n");
     p_buf_p = program_buf;
     while (*p_buf_p++ != '(') { };
     parser(f_output, 0);
@@ -119,19 +121,19 @@ int parser(FILE* f_output, int indent_depth)
     int sub_indent_len = indent_len + INDENT_WIDTH;
     char tag_buf[TAG_NAME_LEN] = { 0 };
     char print_buf[INPUT_BUFSIZE] = { 0 };
+    unsigned int i; // index for print_buf
     char c;
-    int i;
 
-    for (i = 0; (c = *p_buf_p++) != ' ' && c != '\t' && c != '\0' && i < TAG_NAME_LEN; ++i) {
+    for (int i = 0; (c = *p_buf_p++) != ' ' && c != '\t' && c != '\0' && i < TAG_NAME_LEN; ++i) {
         tag_buf[i] = c;
     }
     fprintf(f_output, "\n%*s<%s>", indent_len, "", tag_buf);
+
     i = 0;
     while ((c = *(p_buf_p)++) != ')' && c != '\0') {
         if (c == '(') {
-            print_buf[i] = '\0';
-            if (strlen(print_buf)) {
-                fprintf(f_output, "\n%*s%s", sub_indent_len, "", print_buf);
+            if (i) {
+                fprintf(f_output, "\n%*s%.*s", sub_indent_len, "", i, print_buf);
             }
             parser(f_output, indent_depth + 1);
             while (*p_buf_p++ == ' ') { }
@@ -141,6 +143,7 @@ int parser(FILE* f_output, int indent_depth)
             print_buf[i++] = c;
         }
     }
+
     if (i) {
         fprintf(f_output, "\n%*s%.*s", sub_indent_len, "", i, print_buf);
     }
