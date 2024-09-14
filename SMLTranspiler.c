@@ -1,11 +1,11 @@
-// cc -g -o SEMLT SEMLTranspiler.c
+// cc -g -o SEML SMLTranspiler.c
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 int processor(FILE* f_output, FILE* f_input);
-int parser(FILE* f_output, char** input_buf, int indent_depth);
+int parser(FILE* f_output, int indent_depth);
 int checkExtension(char* filename, char** filename_extension_p, char* extension);
 
 char* void_elements[] = {
@@ -34,6 +34,7 @@ enum err {
 #define INDENT_WIDTH 2
 #define EXTENSION ".seml"
 #define INPUT_BUFSIZE 1024
+#define PROGRAM_BUFSIZE 1000000
 #define TAG_NAME_LEN 20
 
 int main(int argc, char* argv[])
@@ -81,47 +82,60 @@ exit:
     exit(retval);
 }
 
+static char program_buf[PROGRAM_BUFSIZE];
+static char* p_buf_p = program_buf;
+
 int processor(FILE* f_output, FILE* f_input)
 {
     char input_buf[INPUT_BUFSIZE];
+    char* buf_start_p;
     char* buf_p;
     char c;
-    // int indent_depth = 0;
-    fprintf(f_output, "%s", "<!DOCTYPE html>");
+
     for (int line_num = 1; fgets(input_buf, INPUT_BUFSIZE, f_input) != NULL; ++line_num) {
-        buf_p = input_buf;
-        while ((c = *buf_p++) == ' ' || c == '\t') { }
-        // printf("%c\n", c);
-        if (c == '(') {
-            parser(f_output, &buf_p, 0);
+        buf_start_p = input_buf;
+        while ((c = *buf_start_p++) == ' ' || c == '\t') { };
+        if (c == '\n' || c == '\0') {
+            continue;
         }
+        buf_p = --buf_start_p;
+        while (*buf_p++ != '\0') { }
+        while ((c = *--buf_p) == ' ' || c == '\t' || c == '\n' || c == '\0') { }
+        *++buf_p = '\0';
+        if ((p_buf_p - program_buf) + (buf_p - buf_start_p) >= PROGRAM_BUFSIZE) {
+            break; // return out of buffer size
+        }
+        p_buf_p += sprintf(p_buf_p, "%s ", buf_start_p);
     }
+    fprintf(f_output, "%s", "<!DOCTYPE html>");
+    p_buf_p = program_buf;
+    while (*p_buf_p++ != '(') { };
+    parser(f_output, 0);
 }
 
-int parser(FILE* f_output, char** input_buf_p, int indent_depth)
+int parser(FILE* f_output, int indent_depth)
 {
     int indent_len = indent_depth * INDENT_WIDTH;
     int sub_indent_len = indent_len + INDENT_WIDTH;
     char tag_buf[TAG_NAME_LEN] = { 0 };
     char print_buf[INPUT_BUFSIZE] = { 0 };
-    char** buf_pp = input_buf_p;
     char c;
     int i;
 
-    for (i = 0; (c = *(*buf_pp)++) != ' ' && c != '\t' && c != '\0' && i < TAG_NAME_LEN; ++i) {
+    for (i = 0; (c = *p_buf_p++) != ' ' && c != '\t' && c != '\0' && i < TAG_NAME_LEN; ++i) {
         tag_buf[i] = c;
     }
     fprintf(f_output, "\n%*s<%s>", indent_len, "", tag_buf);
     i = 0;
-    while ((c = *(*buf_pp)++) != ')' && c != '\0') {
+    while ((c = *(p_buf_p)++) != ')' && c != '\0') {
         if (c == '(') {
             print_buf[i] = '\0';
             if (strlen(print_buf)) {
                 fprintf(f_output, "\n%*s%s", sub_indent_len, "", print_buf);
             }
-            parser(f_output, buf_pp, indent_depth + 1);
-            while (*(*buf_pp)++ == ' ') { }
-            (*buf_pp)--;
+            parser(f_output, indent_depth + 1);
+            while (*p_buf_p++ == ' ') { }
+            p_buf_p--;
             i = 0;
         } else {
             print_buf[i++] = c;
