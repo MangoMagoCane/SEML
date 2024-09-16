@@ -6,7 +6,7 @@ SEML (Symbolic Expression Markup Language) is a representation for HTML as LISP 
 
 SEML input:
 
-```racket
+```
 (html 
   (head (title This is SEML!!!))
   (body (h1 We've got a heading)
