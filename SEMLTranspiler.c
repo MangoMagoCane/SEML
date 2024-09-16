@@ -1,4 +1,4 @@
-// cc -g -o SEML SMLTranspiler.c
+// cc -g -o SEML SEMLTranspiler.c
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -154,7 +154,7 @@ int checkExtension(char* filename, char** filename_extension_p, char* extension)
 {
     char* dot = strrchr(filename, '.');
     *filename_extension_p = dot;
-    if (!dot || dot == filename || strcmp(dot, extension) != 0) {
+    if (dot == 0 || dot == filename || strcmp(dot, extension) != 0) {
         return false;
     }
     return true;
