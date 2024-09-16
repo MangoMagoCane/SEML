@@ -12,9 +12,9 @@ SEML input:
   (body (h1 We've got a heading)
     (p and a paragraph with a list!
       (ul (li Item 1!)
-      (li Item 1!)
-      (li Item 2!)
-      (li Item 3!)))))
+        (li Item 1!)
+        (li Item 2!)
+        (li Item 3!)))))
 ```
 
 HTML output:
