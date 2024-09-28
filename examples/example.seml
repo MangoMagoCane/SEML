@@ -1,7 +1,9 @@
-(html 
-  (head (title This is SEML!!!))
+(html
+  (head (title This is SEML!!!)
+  (link))
   (body (h1 We've got a heading)
     (p and a paragraph with a list!
+      (br dogg)
       (ul (li Item 1!)
         (li Item 1!)
         (li Item 2!)

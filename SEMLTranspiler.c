@@ -8,7 +8,21 @@ int processor(FILE* f_output, FILE* f_input);
 int parser(FILE* f_output, int indent_depth);
 int checkExtension(char* filename, char** filename_extension_p, char* extension);
 
-char* void_elements[] = {
+#define INDENT_WIDTH 2
+#define EXTENSION ".seml"
+#define INPUT_BUFSIZE 1024
+#define PROGRAM_BUFSIZE 1000000
+#define TAG_NAME_LEN 20
+#define VOID_ELEMENT_COUNT 13
+
+enum err {
+    INVALID_ARGUMENT_COUNT,
+    INVALID_FILE,
+    INVALID_FILE_EXTENSION,
+    FAILED_MALLOC
+};
+
+char* void_elements[VOID_ELEMENT_COUNT] = {
     "area",
     "base",
     "br",
@@ -23,19 +37,6 @@ char* void_elements[] = {
     "track",
     "wbr",
 };
-
-enum err {
-    INVALID_ARGUMENT_COUNT,
-    INVALID_FILE,
-    INVALID_FILE_EXTENSION,
-    FAILED_MALLOC
-};
-
-#define INDENT_WIDTH 2
-#define EXTENSION ".seml"
-#define INPUT_BUFSIZE 1024
-#define PROGRAM_BUFSIZE 2048
-#define TAG_NAME_LEN 20
 
 int main(int argc, char* argv[])
 {
@@ -102,6 +103,7 @@ int processor(FILE* f_output, FILE* f_input)
         while (*buf_p++ != '\0') { }
         while ((c = *--buf_p) == ' ' || c == '\t' || c == '\n' || c == '\0') { }
         *++buf_p = '\0';
+        printf("\"%s\"\n", buf_start_p);
         if ((p_buf_p - program_buf) + (buf_p - buf_start_p) >= PROGRAM_BUFSIZE) {
             fprintf(stderr, "cannot read in entire file, max character length: %d, exceeded on line: %d, character: %d", PROGRAM_BUFSIZE, line_num, buf_p - input_buf);
             break; // break out if reading into program_buf would overflow
@@ -111,7 +113,8 @@ int processor(FILE* f_output, FILE* f_input)
 
     fprintf(f_output, "%s", "<!DOCTYPE html>\n");
     p_buf_p = program_buf;
-    while (*p_buf_p++ != '(') { };
+    while (*p_buf_p++ != '(' && p_buf_p < program_buf + sizeof(program_buf)) { };
+    printf("%s", p_buf_p);
     parser(f_output, 0);
 }
 
@@ -121,33 +124,52 @@ int parser(FILE* f_output, int indent_depth)
     int sub_indent_len = indent_len + INDENT_WIDTH;
     char tag_buf[TAG_NAME_LEN] = { 0 };
     char print_buf[INPUT_BUFSIZE] = { 0 };
-    unsigned int i; // index for print_buf
+    unsigned int buf_i; // index for print_buf
     char c;
+    bool inline_element = true;
 
-    for (int i = 0; (c = *p_buf_p++) != ' ' && c != '\t' && c != '\0' && i < TAG_NAME_LEN; ++i) {
+    for (int i = 0; (c = *p_buf_p++) != ' ' && c != '\t' && c != '\0' && c != ')' && i < TAG_NAME_LEN; ++i) {
         tag_buf[i] = c;
     }
     fprintf(f_output, "\n%*s<%s>", indent_len, "", tag_buf);
+    if (c == ')') {
+        return 0;
+    }
+    for (int i = 0; i < VOID_ELEMENT_COUNT; ++i) {
+        if (strcmp(tag_buf, void_elements[i]) == 0) {
+            while ((c = *(p_buf_p)++) != ')' && c != '\0') { }
+            return 0;
+        }
+    }
 
-    i = 0;
+    buf_i = 0;
     while ((c = *(p_buf_p)++) != ')' && c != '\0') {
         if (c == '(') {
-            if (i) {
-                fprintf(f_output, "\n%*s%.*s", sub_indent_len, "", i, print_buf);
+            if (buf_i) {
+                fprintf(f_output, "\n%*s%.*s", sub_indent_len, "", buf_i, print_buf);
             }
             parser(f_output, indent_depth + 1);
             while (*p_buf_p++ == ' ') { }
             p_buf_p--;
-            i = 0;
+            buf_i = 0;
+            inline_element = false;
         } else {
-            print_buf[i++] = c;
+            print_buf[buf_i++] = c;
         }
     }
 
-    if (i) {
-        fprintf(f_output, "\n%*s%.*s", sub_indent_len, "", i, print_buf);
+    if (buf_i) {
+        if (inline_element) {
+            fprintf(f_output, "%.*s", buf_i, print_buf);
+        } else {
+            fprintf(f_output, "\n%*s%.*s", sub_indent_len, "", buf_i, print_buf);
+        }
     }
-    fprintf(f_output, "\n%*s</%s>", indent_len, "", tag_buf);
+    if (inline_element) {
+        fprintf(f_output, "</%s>", tag_buf);
+    } else {
+        fprintf(f_output, "\n%*s</%s>", indent_len, "", tag_buf);
+    }
 }
 
 int checkExtension(char* filename, char** filename_extension_p, char* extension)
