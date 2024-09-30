@@ -24,29 +24,17 @@ HTML output:
 
 <html>
   <head>
-    <title>
-      This is SEML!!!
-    </title>
+    <title>This is SEML!!!</title>
   </head>
   <body>
-    <h1>
-      We've got a heading
-    </h1>
+    <h1>We've got a heading</h1>
     <p>
       and a paragraph with a list! 
       <ul>
-        <li>
-          Item 1!
-        </li>
-        <li>
-          Item 1!
-        </li>
-        <li>
-          Item 2!
-        </li>
-        <li>
-          Item 3!
-        </li>
+        <li>Item 1!</li>
+        <li>Item 1!</li>
+        <li>Item 2!</li>
+        <li>Item 3!</li>
       </ul>
     </p>
   </body>
